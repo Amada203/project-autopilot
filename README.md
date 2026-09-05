@@ -1,0 +1,71 @@
+# Project Autopilot Controller
+
+Fail-closed controller that can evolve a generated Full Harness project's
+business code only under an owner-approved policy, an externally issued
+narrow candidate grant, and a verified central control ledger.
+
+**Status: local implementation, no release.** The pinned-release, GitHub App,
+and remote pilot steps belong to the owner-authorized central deployment
+checklist (see `ai-full-harness/docs/`).
+
+## Architecture
+
+```text
+candidate job (unprivileged): contract checks -> constitution -> controller pin
+  -> kill switches -> state gate -> grant + ledger verification
+  -> policy lane -> candidate branch + draft PR (or dry-run decision)
+```
+
+- Merge, release, deploy, and any workflow/permission/secret change are not
+  implemented and cannot be granted: the client interface does not expose
+  them, and every workflow is a draft-PR-only path.
+- Candidate jobs never receive privileged credentials; the reusable workflow
+  separates validation from any future protected promotion job.
+- Dry-run, observe-only, and H-lane runs perform zero GitHub mutations.
+
+## Zero-dependency deviation (recorded)
+
+The original plan specified TypeScript + vitest + octokit. This delivery is
+plain Node >=20 ESM with the built-in `node:test` runner and a fake GitHub
+client behind a narrow interface, so the full adversarial suite runs without
+any network or npm install. Swapping in octokit behind
+`src/github-client.mjs` is an integration-time change only.
+
+## Layout
+
+```text
+src/parse.mjs            safe flat-YAML subset parser (data, never sourced)
+src/policy-evaluate.mjs  L/M/H lanes; unknown risk is H; protected paths deny
+src/state-machine.mjs    exact enrollment transition table + SAFE_STOP
+src/safety.mjs           constitution pin, controller SHA pin, kill switches
+src/ledger.mjs           central control ledger chain + grant verification
+src/github-client.mjs    narrow client interface + recording fake
+src/candidate.mjs        branch/evidence/draft-PR orchestration
+src/canary.mjs           fail-closed canary and promotion decisions
+src/feedback.mjs         sanitized REVIEW-only feedback
+src/controller.mjs       gate-ordered orchestrator
+src/index.mjs            CLI/action adapter (JSON context in, summary out)
+scripts/check-workflow-security.mjs
+test/                    52 adversarial and lane fixtures
+.github/workflows/       CI + project-local autopilot run workflow
+```
+
+## Commands
+
+```bash
+node --test "test/*.test.mjs"
+node scripts/check-workflow-security.mjs .github/workflows/
+```
+
+## Ledger contract
+
+See `ai-full-harness/docs/superpowers/specs/2026-09-06-control-ledger-design.md`.
+The controller only verifies ledger snapshots; it never creates, repairs, or
+extends them.
+
+## Boundary
+
+This repository never claims evidence truthfulness, never self-approves, and
+never enlarges its own authority. A malicious repository administrator
+remains outside any repository-only threat model, as documented by the Full
+Harness assurance boundary.

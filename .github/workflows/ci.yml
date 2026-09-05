@@ -1,0 +1,26 @@
+name: Controller CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out controller
+        uses: actions/checkout@v4
+      - name: Use Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Unit and adversarial tests
+        run: node --test "test/*.test.mjs"
+      - name: Workflow security checks
+        run: node scripts/check-workflow-security.mjs .github/workflows/
+      - name: No unresolved template markers in dist
+        run: |
+          ! grep -rn '{{[A-Z_]*}}' src/ scripts/ action.yml

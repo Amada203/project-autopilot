@@ -1,0 +1,50 @@
+name: Autopilot controller run
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'observe | run'
+        required: true
+        default: 'observe'
+      dry-run:
+        description: 'Compute decisions with zero GitHub mutations'
+        required: false
+        default: 'true'
+
+jobs:
+  validate-contract:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out project
+        uses: actions/checkout@v4
+      - name: Full Harness structural validation
+        run: scripts/check-harness.sh
+      - name: Lifecycle plan gate must be fresh
+        run: scripts/check-lifecycle-gate.sh plan
+      - name: Autopilot contract must pass
+        run: scripts/check-autopilot-contract.sh
+      - name: Grant contract status
+        run: scripts/check-autopilot-grant.sh status
+
+  candidate:
+    needs: validate-contract
+    if: ${{ github.event.inputs.mode == 'run' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    # Candidate code is analysed in this unprivileged job. No environment,
+    # no App key, no production secret is available here. Promotion beyond a
+    # draft PR never happens in this workflow.
+    steps:
+      - name: Check out project
+        uses: actions/checkout@v4
+      - name: Run controller (draft PR at most)
+        run: |
+          node /opt/autopilot/src/index.mjs --context "$RUNNER_TEMP/context.json" \
+            --dry-run="${{ github.event.inputs.dry-run }}"
+        env:
+          AUTOPILOT_CONTROLLER_SHA: ${{ github.sha }}

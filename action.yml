@@ -1,0 +1,37 @@
+name: 'Project Autopilot'
+description:
+  Fail-closed controller step: verifies constitution, controller pin, kill
+  switches, grant, and ledger before any candidate branch or draft PR.
+inputs:
+  mode:
+    description: 'observe | run | resume'
+    required: false
+    default: 'observe'
+  project-directory:
+    description: 'Path to the generated Full Harness project'
+    required: true
+  policy-path:
+    description: 'Path to .autopilot/POLICY.yml relative to project-directory'
+    required: false
+    default: '.autopilot/POLICY.yml'
+  dry-run:
+    description: 'Compute decisions with zero GitHub mutations'
+    required: false
+    default: 'true'
+  repository-token:
+    description: 'Same-repository token with contents:write and pull-requests:write only'
+    required: true
+outputs:
+  decision:
+    description: 'OBSERVE | OPEN_CANDIDATE_PR | OPEN_CANDIDATE_PR_THEN_CANARY | OPEN_CANDIDATE_PR_WITH_AUTO_MERGE | PREPARE_PLAN_ONLY | ROLLBACK | HALT | DENY'
+  state:
+    description: 'Enrollment state after the run'
+  pr-number:
+    description: 'Opened draft PR number, if any'
+  requires-human-approval:
+    description: 'true when the next action must be human'
+  failure-reason:
+    description: 'Structured fail-closed reason, when denied'
+runs:
+  using: 'node20'
+  main: 'src/index.mjs'
