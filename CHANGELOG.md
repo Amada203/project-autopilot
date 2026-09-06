@@ -14,3 +14,14 @@
 - Deviation recorded: zero-dependency Node ESM + node:test instead of
   TypeScript/vitest/octokit (no-network local delivery; octokit integrates
   behind the narrow client interface later).
+
+## 0.1.1 — 2026-09-06 (adversarial round 2)
+
+- Fixed nested protected-directory drift: `src/config/x`, `app/deploy/x`
+  style paths now deny, matching the harness verifier's any-depth semantics
+  (cross-repo parity fixture added).
+- Normalized grant numerics across the YAML/JSON boundary; non-numeric
+  values fail closed; revocation epochs are forward-only from issuance.
+- CLI assembles the effective policy from the generated three-file layout
+  (ENROLLMENT/PROTECTED_PATHS/POLICY) instead of an idealized single file.
+- Suite grew 52 -> 59.

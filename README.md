@@ -69,3 +69,11 @@ This repository never claims evidence truthfulness, never self-approves, and
 never enlarges its own authority. A malicious repository administrator
 remains outside any repository-only threat model, as documented by the Full
 Harness assurance boundary.
+
+## Trust boundary note (adversarial round 2)
+
+Harness-side checks are enforced by workflow ordering
+(`needs: validate-contract`), not by controller internals; direct CLI
+invocation of mutating lanes outside that workflow is an integration-time
+violation. Ledger snapshot freshness (revocation lag) is an owner
+ledger-operations duty recorded in the central deployment checklist.

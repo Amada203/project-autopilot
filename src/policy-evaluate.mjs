@@ -86,11 +86,17 @@ function deny(reason, touchedProtectedPath, risk = 'H') {
 }
 
 // Mirrors the inherent protected-path rules enforced by the generated
-// project's check-autopilot-contract.sh protected-diff mode.
+// project's check-autopilot-contract.sh protected-diff mode. Directory
+// segments match at ANY depth (harness case patterns are */dir/*), not only
+// at the repository root.
 export function isProtectedPath(path, policy) {
   const normalized = path.replaceAll('//', '/');
   const base = normalized.split('/').pop();
-  if (/^\/?(config|secrets|deploy|deployment|infra|k8s|helm|terraform|\.terraform)\//.test(`/${normalized}`)) {
+  const segments = normalized.split('/');
+  const protectedDirs = new Set([
+    'config', 'secrets', 'deploy', 'deployment', 'infra', 'k8s', 'helm', 'terraform', '.terraform',
+  ]);
+  if (segments.slice(0, -1).some((segment) => protectedDirs.has(segment))) {
     return true;
   }
   const inherent = [

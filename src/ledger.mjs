@@ -65,8 +65,21 @@ export function verifyGrantAgainstLedger(entries, grant) {
       return { ok: false, reason: `grant ${listKey} does not match the issued ledger entry` };
     }
   }
-  if (grant.max_runs !== issue.max_runs) {
-    return { ok: false, reason: 'grant budget does not match the issued ledger entry' };
+  // Grant data crosses the YAML/JSON boundary; normalize numeric fields so a
+  // string '3' from a flat file never causes a false mismatch. Fail closed
+  // on anything non-numeric.
+  const grantBudget = Number(grant.max_runs);
+  const issuedBudget = Number(issue.max_runs);
+  if (!Number.isInteger(grantBudget) || !Number.isInteger(issuedBudget) || grantBudget !== issuedBudget) {
+    return { ok: false, reason: 'grant budget (max_runs) does not match the issued ledger entry' };
+  }
+
+  // The grant's revocation epoch may only move forward from issuance;
+  // anything newer is decided by revoke entries below.
+  const issuedEpoch = Number(issue.revocation_epoch);
+  const grantEpoch = Number(grant.revocation_epoch);
+  if (!Number.isInteger(issuedEpoch) || !Number.isInteger(grantEpoch) || grantEpoch < issuedEpoch) {
+    return { ok: false, reason: 'grant revocation_epoch cannot predate the issued ledger entry' };
   }
 
   const revocations = entries.filter((e) => e.type === 'revoke' && e.grant_id === grant.grant_id);
