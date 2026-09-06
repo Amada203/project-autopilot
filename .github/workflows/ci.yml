@@ -18,7 +18,7 @@ jobs:
         with:
           node-version: 20
       - name: Unit and adversarial tests
-        run: node --test "test/*.test.mjs"
+        run: node --test test/*.test.mjs
       - name: Workflow security checks
         run: node scripts/check-workflow-security.mjs .github/workflows/
       - name: No unresolved template markers in dist

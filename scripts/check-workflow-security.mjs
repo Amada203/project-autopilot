@@ -34,8 +34,13 @@ for (const file of filesIn(process.argv[2] ?? '.github/workflows')) {
   if (text.includes('secrets: inherit')) {
     fail('secrets: inherit is forbidden');
   }
-  if (/\$\{\{ *secrets\./.test(text)) {
-    fail('secret interpolation is forbidden in controller workflows');
+  // Inline secret interpolation inside run: scripts is forbidden; passing a
+  // secret through an env: mapping is the sanctioned delivery channel.
+  for (const line of text.split('\n')) {
+    if (/\$\{\{ *secrets\./.test(line) && !/^\s*[A-Za-z_][A-Za-z0-9_]*:\s*\$\{\{ *secrets\./.test(line)) {
+      fail('secret interpolation is forbidden outside env: mappings');
+      break;
+    }
   }
   if (/git +push[^\n]*(main|master)/.test(text)) {
     fail('direct default-branch pushes are forbidden');

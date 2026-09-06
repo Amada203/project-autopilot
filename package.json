@@ -6,8 +6,8 @@
   "description": "Fail-closed Autopilot controller executing only grant- and ledger-verified candidate work under a pinned Full Harness contract.",
   "engines": { "node": ">=20" },
   "scripts": {
-    "test": "node --test \"test/*.test.mjs\"",
+    "test": "node --test test/*.test.mjs",
     "lint:workflow": "node scripts/check-workflow-security.mjs .github/workflows/",
-    "ci": "node --test \"test/*.test.mjs\" && node scripts/check-workflow-security.mjs .github/workflows/"
+    "ci": "node --test test/*.test.mjs && node scripts/check-workflow-security.mjs .github/workflows/"
   }
 }
