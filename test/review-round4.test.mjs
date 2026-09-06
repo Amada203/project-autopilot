@@ -12,6 +12,11 @@ import { evaluateCanary } from '../src/canary.mjs';
 import { constitutionText, activeLpolicy, grant, ledgerText } from './helpers.mjs';
 
 const controllerRoot = fileURLToPath(new URL('..', import.meta.url));
+import { existsSync } from 'node:fs';
+// Cross-repo integration evidence requires a sibling harness checkout;
+// on CI these tests report skipped rather than pretending to pass.
+const HARNESS_DIR = process.env.HARNESS_DIR
+  ?? (existsSync('/Users/apple/ai-full-harness/bin/new-full-project') ? '/Users/apple/ai-full-harness' : null);
 const objectiveDigest = grant.task_digest;
 
 const base = {
@@ -176,8 +181,10 @@ allowed_paths: [src/]
 });
 
 // F5: the FULL generated ENROLLMENT.yml is accepted by the CLI.
-test('CLI accepts the complete generated enrollment contract', () => {
-  const harness = process.env.HARNESS_DIR ?? '/Users/apple/ai-full-harness';
+test('CLI accepts the complete generated enrollment contract', (t) => {
+  const harness = HARNESS_DIR;
+  if (!harness) return t.skip('cross-repo: sibling harness checkout unavailable');
+  if (!harness) return t.skip('cross-repo: sibling harness checkout unavailable');
   const temp = mkdtempSync(join(tmpdir(), 'enroll-'));
   const generated = spawnSync('bash', [join(harness, 'bin/new-full-project'), '--no-git', 'pilot', temp], { encoding: 'utf8' });
   assert.equal(generated.status, 0, generated.stderr);
@@ -198,7 +205,7 @@ test('CLI accepts the complete generated enrollment contract', () => {
 });
 
 // F5: Action-style inputs produce outputs instead of usage errors.
-test('action entry reads INPUT_* and writes GITHUB_OUTPUT', () => {
+test('action entry reads INPUT_* and writes GITHUB_OUTPUT', (t) => {
   const temp = mkdtempSync(join(tmpdir(), 'action-'));
   const output = join(temp, 'github-output.txt');
   const generated = spawnSync('bash', [join(process.env.HARNESS_DIR ?? '/Users/apple/ai-full-harness', 'bin/new-full-project'), '--no-git', 'pilot', temp], { encoding: 'utf8' });
@@ -240,8 +247,9 @@ test('workflow security check rejects quoted write-all', () => {
 
 // F7 (harness side): allowlisted source behind an out-of-project parent
 // symlink must refuse to sync.
-test('knowledge-sync refuses out-of-project parent symlinks', () => {
-  const harness = process.env.HARNESS_DIR ?? '/Users/apple/ai-full-harness';
+test('knowledge-sync refuses out-of-project parent symlinks', (t) => {
+  const harness = HARNESS_DIR;
+  if (!harness) return t.skip('cross-repo: sibling harness checkout unavailable');
   const temp = mkdtempSync(join(tmpdir(), 'kbf7-'));
   const generated = spawnSync('bash', [join(harness, 'bin/new-full-project'), '--no-git', 'pilot', temp], { encoding: 'utf8' });
   assert.equal(generated.status, 0, generated.stderr);
