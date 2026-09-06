@@ -43,6 +43,10 @@ jobs:
       - name: Check out project
         uses: actions/checkout@v4
       - name: Run controller (draft PR at most)
+        # /opt/autopilot is the deployment-time location of the pinned
+        # controller release (full commit SHA), wired per the owner's
+        # central deployment checklist; it is intentionally not a mutable
+        # checkout of this repository.
         run: |
           node /opt/autopilot/src/index.mjs --context "$RUNNER_TEMP/context.json" \
             --dry-run="${{ github.event.inputs.dry-run }}"
