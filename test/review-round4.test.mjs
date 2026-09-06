@@ -208,7 +208,8 @@ test('CLI accepts the complete generated enrollment contract', (t) => {
 test('action entry reads INPUT_* and writes GITHUB_OUTPUT', (t) => {
   const temp = mkdtempSync(join(tmpdir(), 'action-'));
   const output = join(temp, 'github-output.txt');
-  const generated = spawnSync('bash', [join(process.env.HARNESS_DIR ?? '/Users/apple/ai-full-harness', 'bin/new-full-project'), '--no-git', 'pilot', temp], { encoding: 'utf8' });
+  if (!HARNESS_DIR) return t.skip('cross-repo: sibling harness checkout unavailable');
+  const generated = spawnSync('bash', [join(HARNESS_DIR, 'bin/new-full-project'), '--no-git', 'pilot', temp], { encoding: 'utf8' });
   assert.equal(generated.status, 0, generated.stderr);
   const result = spawnSync(process.execPath, [join(controllerRoot, 'src/index.mjs')], {
     encoding: 'utf8',
