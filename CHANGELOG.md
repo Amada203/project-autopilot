@@ -24,4 +24,4 @@
   values fail closed; revocation epochs are forward-only from issuance.
 - CLI assembles the effective policy from the generated three-file layout
   (ENROLLMENT/PROTECTED_PATHS/POLICY) instead of an idealized single file.
-- Suite grew 52 -> 59.
+- Suite grew 52 -> 58.
