@@ -4,9 +4,11 @@ Fail-closed controller that can evolve a generated Full Harness project's
 business code only under an owner-approved policy, an externally issued
 narrow candidate grant, and a verified central control ledger.
 
-**Status: local implementation, no release.** The pinned-release, GitHub App,
-and remote pilot steps belong to the owner-authorized central deployment
-checklist (see `ai-full-harness/docs/`).
+**Status: source published** to the private
+github.com/Amada203/project-autopilot (main = cfe4f13, 2026-09-06). This is
+a source push, not a pinned release: generated projects must still pin a
+release commit SHA, and the GitHub App, remote pilot, and ledger belong to
+the owner-authorized central deployment checklist (see `ai-full-harness/docs/`).
 
 ## Architecture
 
