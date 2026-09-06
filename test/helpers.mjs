@@ -58,4 +58,4 @@ export const activeLpolicy = {
   protected_paths: ['.autopilot/', '.ai/', '.env'],
 };
 
-export const objectiveDigest = 'c'.repeat(64);
+export const objectiveDigest = 'a'.repeat(64); // equals grant.task_digest

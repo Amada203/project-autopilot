@@ -11,6 +11,26 @@ on:
         description: 'Compute decisions with zero GitHub mutations'
         required: false
         default: 'true'
+  workflow_call:
+    inputs:
+      mode:
+        description: 'observe | run'
+        required: true
+        default: 'observe'
+        type: string
+      dry-run:
+        description: 'Compute decisions with zero GitHub mutations'
+        required: false
+        default: 'true'
+        type: string
+      controller-ref:
+        description: 'Full commit SHA of the pinned controller release'
+        required: true
+        type: string
+    secrets:
+      ledger-snapshot:
+        description: 'Owner-distributed ledger snapshot contents'
+        required: true
 
 jobs:
   validate-contract:
@@ -27,11 +47,26 @@ jobs:
       - name: Autopilot contract must pass
         run: scripts/check-autopilot-contract.sh
       - name: Grant contract status
-        run: scripts/check-autopilot-grant.sh status
+        # Exit 0 = disabled (no remote authority). Exit 3 = a grant is
+        # present and MUST be verified by the trusted ledger in the
+        # candidate job — it is a required precondition, not a failure.
+        run: |
+          set +e
+          scripts/check-autopilot-grant.sh status
+          code=$?
+          set -e
+          if [ "$code" -eq 0 ]; then
+            echo "grant-present=false" >> "$GITHUB_OUTPUT"
+          elif [ "$code" -eq 3 ]; then
+            echo "grant-present=true" >> "$GITHUB_OUTPUT"
+          else
+            exit 1
+          fi
+        id: grant
 
   candidate:
     needs: validate-contract
-    if: ${{ github.event.inputs.mode == 'run' }}
+    if: ${{ github.event.inputs.mode == 'run' || inputs.mode == 'run' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -42,13 +77,41 @@ jobs:
     steps:
       - name: Check out project
         uses: actions/checkout@v4
-      - name: Run controller (draft PR at most)
-        # /opt/autopilot is the deployment-time location of the pinned
-        # controller release (full commit SHA), wired per the owner's
-        # central deployment checklist; it is intentionally not a mutable
-        # checkout of this repository.
+      - name: Check out pinned controller release
+        uses: actions/checkout@v4
+        with:
+          repository: Amada203/project-autopilot
+          ref: ${{ inputs.controller-ref || github.event.inputs.controller-ref }}
+          path: autopilot-controller
+      - name: Use Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Build controller context from the real contract files
         run: |
-          node /opt/autopilot/src/index.mjs --context "$RUNNER_TEMP/context.json" \
-            --dry-run="${{ github.event.inputs.dry-run }}"
+          node - <<'NODE'
+          const { readFileSync, writeFileSync } = require('node:fs');
+          const ctx = {
+            constitutionText: readFileSync('.autopilot/CONSTITUTION.yml', 'utf8'),
+            policyText: readFileSync('.autopilot/POLICY.yml', 'utf8'),
+            enrollmentText: readFileSync('.autopilot/ENROLLMENT.yml', 'utf8'),
+            protectedPathsText: readFileSync('.autopilot/PROTECTED_PATHS.yml', 'utf8'),
+            ledgerText: process.env.LEDGER_SNAPSHOT,
+            currentState: 'ACTIVE',
+            repositoryId: process.env.GITHUB_REPOSITORY,
+            projectSlug: process.env.GITHUB_REPOSITORY.split('/').pop(),
+            runId: `run-${process.env.GITHUB_RUN_ID}`,
+            objectiveDigest: process.env.AUTOPILOT_OBJECTIVE_DIGEST,
+          };
+          writeFileSync(process.env.RUNNER_TEMP + '/context.json', JSON.stringify(ctx));
+          NODE
         env:
-          AUTOPILOT_CONTROLLER_SHA: ${{ github.sha }}
+          LEDGER_SNAPSHOT: ${{ secrets.ledger-snapshot }}
+      - name: Run controller (draft PR at most)
+        run: |
+          node autopilot-controller/src/index.mjs \
+            --context "$RUNNER_TEMP/context.json" \
+            --dry-run="${{ inputs.dry-run || github.event.inputs.dry-run }}"
+        env:
+          AUTOPILOT_CONTROLLER_SHA: ${{ inputs.controller-ref || github.event.inputs.controller-ref }}
+          AUTOPILOT_OBJECTIVE_DIGEST: ${{ vars.AUTOPILOT_OBJECTIVE_DIGEST }}

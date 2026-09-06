@@ -91,16 +91,32 @@ test('revoked grant denies through the ledger', async () => {
   assert.match(summary.failureReason, /revoked/);
 });
 
-test('full authorized run opens exactly one draft PR with evidence', async () => {
+test('full authorized run opens exactly one diagnostic draft PR; promotion stays gated', async () => {
   const client = new FakeGithubClient();
   const summary = await run({ ...withGrant, dryRun: false, client });
-  assert.equal(summary.decision, 'OPEN_CANDIDATE_PR_WITH_AUTO_MERGE');
+  // F8: without canary evidence the PR is diagnostic; promotion stays human-gated.
+  assert.equal(summary.decision, 'OPEN_CANDIDATE_PR');
   assert.equal(summary.dryRun, false);
   assert.equal(summary.prNumber, 1);
-  assert.equal(summary.requiresHumanApproval, false);
+  assert.equal(summary.requiresHumanApproval, true);
   const prOps = client.operations.filter(([op]) => op === 'openPullRequest');
   assert.equal(prOps.length, 1);
   assert.ok(client.operations.some(([op, , , label]) => op === 'addLabel' && label === 'risk-l'));
+});
+
+test('bound PASS evidence with PASS canary unlocks promotion semantics', async () => {
+  const client = new FakeGithubClient();
+  const summary = await run({
+    ...withGrant,
+    dryRun: false,
+    client,
+    evidence: {
+      smokeResult: 'PASS', adversarialResult: 'PASS',
+      objectiveDigest, canary: { result: 'PASS', reason: 'within bounds' },
+    },
+  });
+  assert.equal(summary.decision, 'PR_READY_FOR_PROMOTION');
+  assert.equal(summary.requiresHumanApproval, false);
 });
 
 test('H lane in full run stays plan-only with zero mutations', async () => {

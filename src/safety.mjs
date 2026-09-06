@@ -27,9 +27,12 @@ export function verifyConstitution(text, file = 'CONSTITUTION.yml') {
   return true;
 }
 
-export function verifyControllerRef(ref) {
+export function verifyControllerRef(ref, expectedRef = null) {
   if (!/^[0-9a-f]{40}$/.test(ref)) {
     throw new Error(`controller ref must be a full 40-character SHA; got ${ref}`);
+  }
+  if (expectedRef !== null && ref !== expectedRef) {
+    throw new Error('running controller ref does not match the trusted enrollment reference');
   }
   return true;
 }

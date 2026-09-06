@@ -39,7 +39,7 @@ test('never-issued, revoked, exhausted, replayed, and mismatched grants deny', (
   );
   assert.equal(verifyGrantAgainstLedger(entries, { ...grant, grant_id: 'GRANT-9' }).ok, false);
   assert.match(verifyGrantAgainstLedger(entries, grant).reason, /exhausted/);
-  assert.match(verifyGrantAgainstLedger(entries, { ...grant, repository_id: 'other/repo' }).reason, /repository_id/);
+  assert.match(verifyGrantAgainstLedger(entries, { ...grant, repository_id: "other/repo" }).reason, /repositor/);
   assert.match(verifyGrantAgainstLedger(entries, { ...grant, max_runs: 99 }).reason, /budget/);
 
   const partiallyConsumed = parseLedger(
@@ -56,8 +56,10 @@ test('never-issued, revoked, exhausted, replayed, and mismatched grants deny', (
       { type: 'revoke', grant_id: 'GRANT-1', revocation_epoch: 5, reason_ref: 'owner' },
     ]),
   );
-  assert.match(verifyGrantAgainstLedger(revoked, { ...grant, revocation_epoch: 2 }).reason, /revoked/);
-  assert.equal(verifyGrantAgainstLedger(revoked, { ...grant, revocation_epoch: 5 }).ok, true);
+  // F3: a revoke entry is permanent; raising the holder epoch cannot undo it.
+  assert.match(verifyGrantAgainstLedger(revoked, { ...grant, revocation_epoch: 2 }).reason, /revoked by ledger entry/);
+  assert.match(verifyGrantAgainstLedger(revoked, { ...grant, revocation_epoch: 5 }).reason, /revoked by ledger entry/);
+  assert.match(verifyGrantAgainstLedger(revoked, { ...grant, revocation_epoch: 9 }).reason, /revoked by ledger entry/);
 });
 
 test('partial consumption stays within budget', () => {

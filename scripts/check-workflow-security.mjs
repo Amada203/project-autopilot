@@ -22,7 +22,7 @@ for (const file of filesIn(process.argv[2] ?? '.github/workflows')) {
     failures += 1;
   };
 
-  if (/permissions:\s*\n?\s*write-all|permissions:\s*write-all/.test(text)) {
+  if (/permissions:\s*\n?\s*(["']?)write-all\1|permissions:\s*(["']?)write-all\2/.test(text)) {
     fail('write-all permissions are forbidden');
   }
   if (!/permissions:/.test(text)) {

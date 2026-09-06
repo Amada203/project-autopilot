@@ -99,6 +99,10 @@ allowed_paths: []
 `,
     enrollmentText: `schema_version: 1
 autopilot_enabled: false
+controller_repository: Amada203/project-autopilot
+controller_ref: UNCONFIGURED
+auto_activate_after_stage0: false
+requested_by: owner
 `,
     protectedPathsText: `schema_version: 1
 protected_paths: [.autopilot/, .ai/, .env]

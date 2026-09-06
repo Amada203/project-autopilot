@@ -1,0 +1,7 @@
+---
+description: Controller repo working rules
+alwaysApply: true
+---
+`.ai/PROJECT_RULES.md` is the single source of truth. Run the full test
+suite and workflow security check before claiming completion. Never weaken
+gates; fail closed; no remote writes without owner authorization.

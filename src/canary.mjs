@@ -11,7 +11,11 @@ export function evaluateCanary(input, now = Date.now()) {
   }
   const { baseline, candidate, minObservations, maxErrorRate, rollbackThreshold, windowExpiresAt } = input;
 
-  if (Date.parse(windowExpiresAt) < now) {
+  const windowTime = Date.parse(windowExpiresAt);
+  if (Number.isNaN(windowTime)) {
+    return verdict('INCONCLUSIVE', 'canary window expiry is not a valid timestamp');
+  }
+  if (windowTime < now) {
     return verdict('INCONCLUSIVE', 'canary window expired without a decision');
   }
   for (const [label, metric] of [['baseline', baseline], ['candidate', candidate]]) {

@@ -12,7 +12,7 @@ export class ParseError extends Error {
 
 const UNSAFE = /[\n\r;|&<>`$(){}#]/;
 
-export function parseFlatYaml(text, file, allowedKeys) {
+export function parseFlatYaml(text, file, allowedKeys, { requireAll = true } = {}) {
   const result = {};
   const seen = new Set();
   for (const [index, rawLine] of text.split('\n').entries()) {
@@ -27,8 +27,10 @@ export function parseFlatYaml(text, file, allowedKeys) {
     seen.add(key);
     result[key] = value;
   }
-  for (const required of allowedKeys) {
-    if (!(required in result)) throw new ParseError(file, required, 'missing required key');
+  if (requireAll) {
+    for (const required of allowedKeys) {
+      if (!(required in result)) throw new ParseError(file, required, 'missing required key');
+    }
   }
   return result;
 }
