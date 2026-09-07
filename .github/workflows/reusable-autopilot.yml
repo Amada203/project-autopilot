@@ -27,10 +27,21 @@ on:
         description: 'Full commit SHA of the pinned controller release'
         required: true
         type: string
+      harness-ref:
+        description: 'Full commit SHA of the pinned ai-full-harness (ledger tool)'
+        required: true
+        type: string
+      ledger-repository:
+        description: 'Private owner repo holding the durable ledger (required for non-dry-run)'
+        required: false
+        type: string
     secrets:
       ledger-snapshot:
         description: 'Owner-distributed ledger snapshot contents'
         required: true
+      ledger-token:
+        description: 'Token with contents:write on the ledger repository (required for non-dry-run)'
+        required: false
 
 jobs:
   validate-contract:
@@ -83,30 +94,81 @@ jobs:
           repository: Amada203/project-autopilot
           ref: ${{ inputs.controller-ref || github.event.inputs.controller-ref }}
           path: autopilot-controller
+      - name: Check out pinned harness (ledger tool)
+        if: ${{ (inputs.mode || github.event.inputs.mode) == 'run' }}
+        uses: actions/checkout@v4
+        with:
+          repository: Amada203/ai-full-harness
+          ref: ${{ inputs.harness-ref || github.event.inputs.harness-ref }}
+          path: full-harness
       - name: Use Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Reserve budget in the ledger before any external write
+        if: ${{ (inputs.mode || github.event.inputs.mode) == 'run' && (inputs.dry-run || github.event.inputs.dry-run) != 'true' }}
+        # Fail closed: a non-dry-run without a durable ledger persistence
+        # target and token is refused, because an ephemeral reservation
+        # cannot bound later runs. The reservation persists BEFORE the
+        # controller acts, so a crashed run still consumes budget
+        # (conservative by design). Secrets reach the script only through
+        # env: mappings, never inline interpolation.
+        env:
+          LEDGER_SNAPSHOT: ${{ secrets.ledger-snapshot }}
+          LEDGER_TOKEN: ${{ secrets.ledger-token }}
+          LEDGER_REPOSITORY: ${{ inputs.ledger-repository }}
+          HARNESS_REF: ${{ inputs.harness-ref || github.event.inputs.harness-ref }}
+        run: |
+          if [ -z "$LEDGER_REPOSITORY" ] || [ -z "$HARNESS_REF" ]; then
+            echo "non-dry-run requires ledger-repository and harness-ref" >&2
+            exit 1
+          fi
+          if [ -z "$LEDGER_TOKEN" ]; then
+            echo "non-dry-run requires the ledger-token secret to persist the reservation" >&2
+            exit 1
+          fi
+          printf '%s' "$LEDGER_SNAPSHOT" > "$RUNNER_TEMP/ledger.jsonl"
+          GRANT_ID="$(awk -F': ' '/^grant_id:/{print $2}' .autopilot/GITHUB_GRANT.yml)"
+          node full-harness/bin/autopilot-ledger consume \
+            "$RUNNER_TEMP/ledger.jsonl" "$GRANT_ID" "run-${GITHUB_RUN_ID}"
+      - name: Persist the reserved ledger back to the owner repository
+        if: ${{ (inputs.mode || github.event.inputs.mode) == 'run' && (inputs.dry-run || github.event.inputs.dry-run) != 'true' }}
+        env:
+          LEDGER_TOKEN: ${{ secrets.ledger-token }}
+          LEDGER_REPOSITORY: ${{ inputs.ledger-repository }}
+        run: |
+          cd "$RUNNER_TEMP"
+          git clone --depth 1 "https://x-access-token:$LEDGER_TOKEN@github.com/$LEDGER_REPOSITORY.git" ledger-store
+          cp ledger.jsonl ledger-store/ledger.jsonl
+          cd ledger-store
+          git config user.name "autopilot-ledger-bot"
+          git config user.email "noreply@github.com"
+          git add ledger.jsonl
+          git commit -m "reserve run-${GITHUB_RUN_ID}"
+          git push origin HEAD
       - name: Build controller context from the real contract files
+        env:
+          LEDGER_SNAPSHOT: ${{ secrets.ledger-snapshot }}
+          NON_DRY_RUN: ${{ (inputs.dry-run || github.event.inputs.dry-run) != 'true' }}
         run: |
           node - <<'NODE'
-          const { readFileSync, writeFileSync } = require('node:fs');
+          const { readFileSync, writeFileSync, existsSync } = require('node:fs');
+          const ledgerPath = process.env.RUNNER_TEMP + '/ledger.jsonl';
           const ctx = {
             constitutionText: readFileSync('.autopilot/CONSTITUTION.yml', 'utf8'),
             policyText: readFileSync('.autopilot/POLICY.yml', 'utf8'),
             enrollmentText: readFileSync('.autopilot/ENROLLMENT.yml', 'utf8'),
             protectedPathsText: readFileSync('.autopilot/PROTECTED_PATHS.yml', 'utf8'),
-            ledgerText: process.env.LEDGER_SNAPSHOT,
+            ledgerText: existsSync(ledgerPath) ? readFileSync(ledgerPath, 'utf8') : process.env.LEDGER_SNAPSHOT,
             currentState: 'ACTIVE',
             repositoryId: process.env.GITHUB_REPOSITORY,
             projectSlug: process.env.GITHUB_REPOSITORY.split('/').pop(),
             runId: `run-${process.env.GITHUB_RUN_ID}`,
             objectiveDigest: process.env.AUTOPILOT_OBJECTIVE_DIGEST,
+            requireRunReservation: process.env.NON_DRY_RUN === 'true',
           };
           writeFileSync(process.env.RUNNER_TEMP + '/context.json', JSON.stringify(ctx));
           NODE
-        env:
-          LEDGER_SNAPSHOT: ${{ secrets.ledger-snapshot }}
       - name: Run controller (draft PR at most)
         run: |
           node autopilot-controller/src/index.mjs \
