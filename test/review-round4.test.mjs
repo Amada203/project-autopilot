@@ -259,7 +259,11 @@ test('knowledge-sync refuses out-of-project parent symlinks', (t) => {
   mkdirSync(vault);
   const kb = join(harness, 'bin/knowledge-base');
   const args = ['--project', project, '--vault', vault, '--folder', 'pilot'];
-  const preview = JSON.parse(spawnSync(process.execPath, [kb, 'preview', ...args], { encoding: 'utf8' }).stdout);
+  const previewRun = spawnSync(process.execPath, [kb, 'preview', ...args], { encoding: 'utf8' });
+  if (previewRun.status !== 0) {
+    throw new Error(`preview failed (${previewRun.status}): ${previewRun.stderr || previewRun.stdout}`);
+  }
+  const preview = JSON.parse(previewRun.stdout);
   const bind = spawnSync(process.execPath, [kb, 'bind', ...args, '--approval-ref', preview.approvalRef], { encoding: 'utf8' });
   assert.equal(bind.status, 0, bind.stderr);
   const outside = join(temp, 'outside');
