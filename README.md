@@ -79,3 +79,11 @@ Harness-side checks are enforced by workflow ordering
 invocation of mutating lanes outside that workflow is an integration-time
 violation. Ledger snapshot freshness (revocation lag) is an owner
 ledger-operations duty recorded in the central deployment checklist.
+
+## Release
+
+`v0.1.0` (commit b2e5d9a, 2026-09-07) is the first pinned release tag.
+Generated projects and workflows must reference this full commit SHA —
+never a branch. The candidate workflow reserves budget in the owner's
+durable ledger before any external write; a non-dry-run fails closed
+without a persistence target.

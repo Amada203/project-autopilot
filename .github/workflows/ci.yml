@@ -24,3 +24,28 @@ jobs:
       - name: No unresolved template markers in dist
         run: |
           ! grep -rn '{{[A-Z_]*}}' src/ scripts/ action.yml
+
+  cross-repo:
+    # Integration evidence against a real generated project. The harness is
+    # public, so a pinned checkout provides the generator and knowledge-sync
+    # fixture; the three tests that skip without a sibling checkout run here.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out controller
+        uses: actions/checkout@v4
+      - name: Check out harness
+        uses: actions/checkout@v4
+        with:
+          repository: Amada203/ai-full-harness
+          ref: main
+          path: full-harness
+      - name: Use Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Cross-repo integration tests
+        env:
+          HARNESS_DIR: ${{ github.workspace }}/full-harness
+        run: node --test test/*.test.mjs
