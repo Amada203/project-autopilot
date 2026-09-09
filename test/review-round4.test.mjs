@@ -20,6 +20,7 @@ const HARNESS_DIR = process.env.HARNESS_DIR
 const objectiveDigest = grant.task_digest;
 
 const base = {
+  repositoryToken: 'tok',
   constitutionText,
   controllerSha: 'a'.repeat(40),
   policy: { ...activeLpolicy, allowed_paths: ['src/'], daily_budget: 3 },
@@ -275,4 +276,10 @@ test('knowledge-sync refuses out-of-project parent symlinks', (t) => {
   const copied = (() => { try { return readFileSync(join(vault, 'pilot/docs/product/PRD.md'), 'utf8'); } catch { return ''; } })();
   assert.doesNotMatch(copied, /SYNTHETIC_PRIVATE_DOCUMENT_OUTSIDE_PROJECT/);
   assert.notEqual(sync.status, 0, sync.stdout);
+});
+
+test('non-dry-run without a repository token denies explicitly', async () => {
+  const { result } = await ops({ repositoryToken: undefined, client: undefined });
+  assert.equal(result.decision, 'DENY');
+  assert.match(result.failureReason, /repository token/);
 });

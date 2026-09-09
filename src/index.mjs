@@ -47,6 +47,9 @@ let context;
 const actionProjectDir = process.env['INPUT_PROJECT-DIRECTORY'];
 if (contextPath) {
   context = JSON.parse(readFileSync(contextPath, 'utf8'));
+  context.repositoryToken = context.repositoryToken
+    ?? process.env.AUTOPILOT_REPOSITORY_TOKEN
+    ?? process.env['INPUT_REPOSITORY-TOKEN'];
 } else if (actionProjectDir) {
   context = buildContextFromProject(actionProjectDir);
 } else {

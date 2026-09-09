@@ -15,6 +15,7 @@ import { verifyGrantAgainstLedger, parseLedger } from './ledger.mjs';
 import { evaluatePolicy } from './policy-evaluate.mjs';
 import { prepareCandidate, HaltedError, actualCandidatePaths } from './candidate.mjs';
 import { promotionDecision, evaluateCanary } from './canary.mjs';
+import { RealGithubClient } from './github-client.mjs';
 
 const MUTATING_ACTIONS = new Set([
   'OPEN_CANDIDATE_PR',
@@ -98,6 +99,15 @@ export async function run(context) {
       if (!verdict.ok) {
         return { ...summary, failureReason: `ledger verification denied: ${verdict.reason}` };
       }
+    }
+
+    if (context.dryRun !== true && !context.client && context.repositoryToken && context.repositoryId
+      && String(context.repositoryId).includes('/')) {
+      const [owner, repo] = String(context.repositoryId).split('/');
+      context.client = new RealGithubClient({ token: context.repositoryToken, owner, repo });
+    }
+    if (context.dryRun !== true && mutatingLane && !context.client) {
+      return { ...summary, failureReason: 'a repository token (repositoryToken) is required for a non-dry-run candidate run' };
     }
 
     if (context.dryRun === true && mutatingLane) {
